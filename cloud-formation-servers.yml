@@ -37,13 +37,72 @@ Resources:
   WebServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for Database server
+      GroupDescription: Security group for Web Service
       VpcId: !ImportValue
         Fn::Sub: "${NetworkStackName}-VpcId"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref JumpBoxSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  WebSiteSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Website server
+      VpcId: !ImportValue
+        Fn::Sub: "${NetworkStackName}-VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref JumpBoxSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  JumpBoxSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the Jump Box
+      VpcId: !ImportValue
+        Fn::Sub: "${NetworkStackName}-VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          DestinationSecurityGroupId: !Ref WebServiceSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          DestinationSecurityGroupId: !Ref DbSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          DestinationSecurityGroupId: !Ref LicenseSecurityGroup
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
           CidrIp: 0.0.0.0/0
 
   DbSecurityGroup:
@@ -56,12 +115,16 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
+          SourceSecurityGroupId: !Ref WebServiceSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref JumpBoxSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
           CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: !Sub "${NetworkStackName}-DbSG"
-        - Key: Layer
-          Value: "bd"
 
   LicenseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -74,6 +137,15 @@ Resources:
           FromPort: 8080
           ToPort: 8080
           SourceSecurityGroupId: !Ref WebServiceSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref JumpBoxSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
 
   WebSiteLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -346,3 +418,4 @@ Outputs:
   DbSecurityGroupId:
     Description: "ID du groupe de sécurité de la base de données"
     Value: !Ref DbSecurityGroup
+
